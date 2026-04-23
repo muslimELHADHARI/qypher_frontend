@@ -89,6 +89,7 @@ function computeStats(events: SecurityEvent[]): StatsResponse {
     topDestIPs,
     attackTypes,
     timeline,
+    historicalEvents: [] // Will be populated from DB
   };
 }
 
@@ -116,6 +117,33 @@ export async function GET() {
     // If backend is unreachable, fallback to buffer length (already set by computeStats)
     console.error("[Stats API] Failed to fetch true total events:", err);
   }
+
+    // Fetch historical events for the ledger
+    try {
+      const historyRes = await fetch("http://192.168.100.104:8000/logs/search?limit=50", { cache: "no-store" });
+      if (historyRes.ok) {
+        const historyData = await historyRes.json();
+        if (historyData.logs) {
+          stats.historicalEvents = historyData.logs.map((log: any) => {
+            let meta: any = {};
+            try { meta = JSON.parse(log.metadata || "{}"); } catch(e) {}
+            return {
+              id: log.id.toString(),
+              timestamp: log.timestamp || new Date().toISOString(),
+              source: (log.source_table || "").replace("logs_", "") || "database",
+              src_ip: log.source_ip || "N/A",
+              src_port: log.source_port === "None" ? "" : log.source_port,
+              dst_ip: log.destination_ip || "N/A",
+              attack_type: log.alert_message || meta.event || log.action || "Logged Event",
+              severity: log.severity === "1" ? "CRITICAL" : log.severity === "2" ? "HIGH" : log.severity === "3" ? "MEDIUM" : "LOW",
+              raw: log.raw_log || log.metadata || "Historical log entry"
+            };
+          });
+        }
+      }
+    } catch (err) {
+      console.error("[Stats API] Failed to fetch historical logs:", err);
+    }
 
   return NextResponse.json(stats);
 }

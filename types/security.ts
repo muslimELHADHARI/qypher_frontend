@@ -47,6 +47,7 @@ export interface StatsResponse {
     medium: number;
     low: number;
   }[];
+  historicalEvents?: SecurityEvent[];
 }
 
 export interface QSHEvent {

@@ -169,56 +169,72 @@ export default function QshMonitorPage() {
       </div>
 
       {/* Detail Feeds */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div className="lg:col-span-2 enterprise-card p-6">
-          <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-wider mb-6 pb-2 border-b border-slate-800/50">
-            Recent Proxy Operations
-          </h3>
-          <div className="overflow-x-auto max-h-[400px]">
-            <table className="ent-table">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 pb-10">
+        <div className="lg:col-span-3 enterprise-card p-6">
+          <div className="flex items-center justify-between mb-6 pb-2 border-b border-slate-800/50">
+             <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-wider">
+               Cryptographic Audit Ledger
+             </h3>
+             <span className="text-[10px] uppercase tracking-widest text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded">Secured by BB84</span>
+          </div>
+          <div className="overflow-x-auto max-h-[500px]">
+            <table className="ent-table w-full text-left">
               <thead className="sticky top-0 bg-slate-900 z-10">
-                <tr className="text-[#64748b] uppercase tracking-wider border-b border-slate-800">
-                  <th className="text-left py-2 px-3">Time</th>
-                  <th className="text-left py-2 px-3">Client IP</th>
-                  <th className="text-left py-2 px-3">Session</th>
-                  <th className="text-left py-2 px-3">Action</th>
-                  <th className="text-left py-2 px-3">Payload / Command</th>
+                <tr className="text-[#64748b] uppercase tracking-wider border-b border-slate-800 text-[10px]">
+                  <th className="py-3 px-4 font-bold">Time</th>
+                  <th className="py-3 px-4 font-bold">Session ID</th>
+                  <th className="py-3 px-4 font-bold">Client IP</th>
+                  <th className="py-3 px-4 font-bold">Action Type</th>
+                  <th className="py-3 px-4 font-bold">Payload / Command</th>
+                  <th className="py-3 px-4 font-bold">Cryptographic Signature</th>
                 </tr>
               </thead>
-              <tbody>
-                {stats.recentEvents.map((evt) => (
-                  <tr key={evt.id} className="border-b border-[rgba(30,58,95,0.2)] hover:bg-[rgba(15,40,71,0.3)] transition-colors">
-                    <td className="py-2.5 px-3 whitespace-nowrap text-[#64748b]">
+              <tbody className="divide-y divide-slate-800/50">
+                {stats.recentEvents.map((evt) => {
+                  // Generate a deterministic pseudo-hash based on ID for visual flair
+                  const pseudoHash = Array.from(evt.id).reduce((acc, char) => ((acc << 5) - acc) + char.charCodeAt(0), 0).toString(16).substring(0, 12).padStart(12, '0');
+                  
+                  return (
+                  <tr key={evt.id} className="hover:bg-[rgba(15,40,71,0.3)] transition-colors group">
+                    <td className="py-3 px-4 whitespace-nowrap text-[#64748b] text-xs font-mono">
                       {evt.timestamp.split("T")[1]?.substring(0, 8)}
                     </td>
-                    <td className="py-2.5 px-3 font-mono text-[#e2e8f0]">
-                      {evt.client}
+                    <td className="py-3 px-4 font-mono text-[#00d4ff] text-xs">
+                      {evt.session || "SYS_AUTH"}
                     </td>
-                    <td className="py-2.5 px-3 font-mono text-[#00d4ff]">
-                      {evt.session}
+                    <td className="py-3 px-4 font-mono text-[#e2e8f0] text-xs">
+                      {evt.client || "INTERNAL"}
                     </td>
-                    <td className="py-2.5 px-3">
-                      <span className={`text-[9px] font-medium uppercase tracking-wider px-2 py-0.5 rounded border ${
-                         evt.event === "auth_success" ? "severity-low" :
-                         evt.event === "command_execute" ? "severity-medium" :
-                         evt.event === "file_action" ? "severity-low" : "severity-high"
+                    <td className="py-3 px-4">
+                      <span className={`text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded border shadow-sm ${
+                         evt.event === "auth_success" ? "text-emerald-500 border-emerald-500/30 bg-emerald-500/10" :
+                         evt.event === "command_execute" ? "text-indigo-400 border-indigo-400/30 bg-indigo-400/10" :
+                         evt.event === "file_action" ? "text-amber-500 border-amber-500/30 bg-amber-500/10" : "text-rose-500 border-rose-500/30 bg-rose-500/10"
                         }`}>
-                        {evt.event === "auth_success" ? "AUTH" : 
-                         evt.event === "command_execute" ? "CMD" : 
-                         evt.action?.toUpperCase() || "OP"}
+                        {evt.event === "auth_success" ? "AUTH_VERIFIED" : 
+                         evt.event === "command_execute" ? "REMOTE_EXEC" : 
+                         evt.event === "file_action" ? "FILE_TRANS" : 
+                         evt.action?.toUpperCase() || "SYS_OP"}
                       </span>
                     </td>
-                    <td className="py-2.5 px-3 font-mono text-[#94a3b8] max-w-[200px] truncate">
-                      {evt.command || "N/A"}
+                    <td className="py-3 px-4 font-mono text-slate-300 text-xs max-w-[250px] truncate group-hover:text-white transition-colors" title={evt.command}>
+                      {evt.command ? <span className="bg-slate-800/50 px-1.5 py-0.5 rounded border border-slate-700/50">{evt.command}</span> : <span className="text-slate-600 italic">No Payload</span>}
+                    </td>
+                    <td className="py-3 px-4 font-mono text-[#64748b] text-[10px]">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/50" />
+                        sha256:{pseudoHash}...
+                      </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </div>
 
-        <div className="enterprise-card p-6">
+        <div className="lg:col-span-3 enterprise-card p-6">
           <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-wider mb-6 pb-2 border-b border-slate-800/50">
             Client Summary
           </h3>

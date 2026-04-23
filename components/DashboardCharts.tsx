@@ -37,11 +37,18 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
     <div className="rounded-lg px-3 py-2 text-xs border border-border/50 shadow-xl"
       style={{ background: "var(--card)", backdropFilter: "blur(12px)" }}>
       <p className="text-muted-foreground font-bold mb-1 uppercase tracking-tight">{label}</p>
-      {payload.map((entry, idx) => (
-        <p key={idx} className="tabular-nums font-black" style={{ color: entry.color }}>
-          {entry.name}: {entry.value}
-        </p>
-      ))}
+      {payload.map((entry, idx) => {
+        // Format names like "high" to "High", and truncate super long raw log strings in tooltip if needed
+        const rawName = entry.name || "";
+        const displayName = rawName.length > 40 ? rawName.substring(0, 40) + "..." : rawName;
+        const finalName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
+        
+        return (
+          <p key={idx} className="tabular-nums font-black" style={{ color: entry.color }}>
+            {finalName}: {entry.value}
+          </p>
+        );
+      })}
     </div>
   );
 }
@@ -147,7 +154,14 @@ export function TopAttackersChart({ data }: { data: StatsResponse["topSourceIPs"
           <BarChart data={data} layout="vertical">
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.1} />
             <XAxis type="number" stroke="var(--muted-foreground)" tick={{ fontSize: 10, fontWeight: 700 }} />
-            <YAxis dataKey="ip" type="category" stroke="var(--muted-foreground)" tick={{ fontSize: 10, fontWeight: 700 }} width={110} />
+            <YAxis 
+              dataKey="ip" 
+              type="category" 
+              stroke="var(--muted-foreground)" 
+              tick={{ fontSize: 10, fontWeight: 700 }} 
+              width={110} 
+              tickFormatter={(val: string) => val.length > 15 ? val.substring(0, 15) + "..." : val}
+            />
             <Tooltip content={<CustomTooltip />} />
             <Bar dataKey="count" radius={[0, 4, 4, 0]}>
               {data.map((_, idx) => (
@@ -173,7 +187,20 @@ export function AttackTypesChart({ data }: { data: StatsResponse["attackTypes"] 
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.1} />
-            <XAxis dataKey="name" stroke="var(--muted-foreground)" tick={{ fontSize: 9, fontWeight: 700 }} interval={0} angle={-15} />
+            <XAxis 
+              dataKey="name" 
+              stroke="var(--muted-foreground)" 
+              tick={{ fontSize: 9, fontWeight: 700 }} 
+              interval={0} 
+              angle={-20} 
+              textAnchor="end"
+              height={50}
+              tickFormatter={(val: string) => {
+                if (!val) return "";
+                let clean = val.includes("(") ? val.split("(")[0].trim() : val;
+                return clean.length > 12 ? clean.substring(0, 12) + "..." : clean;
+              }}
+            />
             <YAxis stroke="var(--muted-foreground)" tick={{ fontSize: 10, fontWeight: 700 }} />
             <Tooltip content={<CustomTooltip />} />
             <Bar dataKey="count" radius={[4, 4, 0, 0]}>

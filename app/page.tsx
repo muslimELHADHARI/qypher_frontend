@@ -5,7 +5,7 @@ import { useSSEEvents } from "@/hooks/useSSEEvents";
 import KPICard from "@/components/KPICard";
 import DashboardCharts from "@/components/DashboardCharts";
 import LiveEventFeed from "@/components/LiveEventFeed";
-import QuantumHealth from "@/components/QuantumHealth";
+import QBERWidget from "@/components/QBERWidget";
 import {
   ShieldAlert,
   Activity,
@@ -103,7 +103,7 @@ export default function DashboardPage() {
         {/* Side Panel (30%) */}
         <div className="space-y-8">
            <div className="enterprise-card p-6">
-              <QuantumHealth />
+              <QBERWidget />
            </div>
 
            <div className="enterprise-card p-6">
