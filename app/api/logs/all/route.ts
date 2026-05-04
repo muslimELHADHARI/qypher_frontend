@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const REMOTE_URL = "http://192.168.100.104:8000";
+const REMOTE_URL = "http://127.0.0.1:8000";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -99,7 +99,7 @@ export async function GET() {
 
   // Fetch true absolute total from the backend database instead of relying on the 1000-event memory buffer
   try {
-    const backendRes = await fetch("http://192.168.100.104:8000/logs/stats", { cache: "no-store" });
+    const backendRes = await fetch("http://127.0.0.1:8000/logs/stats", { cache: "no-store" });
     if (backendRes.ok) {
       const backendData = await backendRes.json();
       if (backendData.statistics) {
@@ -120,7 +120,7 @@ export async function GET() {
 
     // Fetch historical events for the ledger
     try {
-      const historyRes = await fetch("http://192.168.100.104:8000/logs/search?limit=50", { cache: "no-store" });
+      const historyRes = await fetch("http://127.0.0.1:8000/logs/search?limit=50", { cache: "no-store" });
       if (historyRes.ok) {
         const historyData = await historyRes.json();
         if (historyData.logs) {

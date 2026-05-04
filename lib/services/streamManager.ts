@@ -9,9 +9,9 @@ import {
 import { getAutoBlockConfig } from "./autoBlockConfig";
 
 const STREAM_URLS = {
-  qsh: "http://192.168.100.104:8000/stream/qsh/raw",
-  suricata: "http://192.168.100.104:8000/stream/suricata",
-  ml: "http://192.168.100.104:8000/stream/ml-zeek"
+  qsh: "http://127.0.0.1:8000/stream/qsh/raw",
+  suricata: "http://127.0.0.1:8000/stream/suricata",
+  ml: "http://127.0.0.1:8000/stream/ml-zeek"
 };
 
 const MAX_BUFFER_SIZE = 1000;
@@ -110,7 +110,7 @@ class StreamManager {
 
   private mapJsonToSecurityEvent(data: any, source: string): SecurityEvent | null {
     // If the API already sends a format close to our SecurityEvent, use it
-    // Otherwise, we'll need a specific mapper for the 192.168.100.104 JSON format
+    // Otherwise, we'll need a specific mapper for the 127.0.0.1 JSON format
     // For now, let's assume it's the raw log line inside a JSON or we try to reconstruct
     if (data.alert || data.timestamp) {
       return {
@@ -153,7 +153,7 @@ class StreamManager {
       console.log(`[AutoBlock] Triggering block for ${event.src_ip} due to ${event.attack_type}`);
 
       try {
-        const res = await fetch(`http://192.168.100.104:8000/ips/block?ip=${event.src_ip}&reason=[Autonomous] ${event.attack_type}`, {
+        const res = await fetch(`http://127.0.0.1:8000/ips/block?ip=${event.src_ip}&reason=[Autonomous] ${event.attack_type}`, {
           method: "POST"
         });
 
