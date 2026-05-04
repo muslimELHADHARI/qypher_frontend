@@ -23,6 +23,7 @@ import {
   type ChatMessage,
   type ChatSession,
 } from "@/data/chatbot_mock";
+import { ragGroqChat } from "@/lib/services/ragService";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -119,6 +120,14 @@ function Message({ msg }: { msg: ChatMessage }) {
           }`}
         >
           {msg.content}
+          
+          {/* Metadata for assistant messages */}
+          {!isUser && msg.type === "code" && (
+            <div className="mt-2 text-[9px] text-emerald-500 font-semibold flex items-center gap-1">
+              <Zap size={10} />
+              Logs analyzed for this response
+            </div>
+          )}
 
           {/* Copy button on hover (assistant only) */}
           {!isUser && (
@@ -238,6 +247,7 @@ export default function ChatbotPage() {
   >({});
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [useLogContext, setUseLogContext] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -250,7 +260,7 @@ export default function ChatbotPage() {
   }, [activeMessages, isTyping]);
 
   const sendMessage = useCallback(
-    (text?: string) => {
+    async (text?: string) => {
       const content = (text ?? input).trim();
       if (!content || isTyping) return;
 
@@ -283,15 +293,17 @@ export default function ChatbotPage() {
       setInput("");
       setIsTyping(true);
 
-      const delay = 900 + Math.random() * 700;
-      setTimeout(() => {
-        const reply = getMockResponse(content);
+      try {
+        const response = await ragGroqChat(content, useLogContext);
+        
         const botMsg: ChatMessage = {
           id: `b-${Date.now()}`,
           role: "assistant",
-          content: reply,
+          content: response.response,
           timestamp: new Date(),
+          type: response.log_context_used ? "code" : "text",
         };
+        
         setMessagesMap((prev) => ({
           ...prev,
           [sessionId]: [...(prev[sessionId] ?? []), botMsg],
@@ -299,14 +311,41 @@ export default function ChatbotPage() {
         setSessions((prev) =>
           prev.map((s) =>
             s.id === sessionId
-              ? { ...s, lastMessage: reply.slice(0, 60) + "…", timestamp: new Date() }
+              ? { ...s, lastMessage: botMsg.content.slice(0, 60) + "…", timestamp: new Date() }
               : s
           )
         );
+      } catch (error) {
+        console.error("RAG API Error, falling back to mock data:", error);
+        
+        // Fallback to mock response
+        setTimeout(() => {
+          const reply = getMockResponse(content);
+          const botMsg: ChatMessage = {
+            id: `b-${Date.now()}`,
+            role: "assistant",
+            content: reply,
+            timestamp: new Date(),
+          };
+          setMessagesMap((prev) => ({
+            ...prev,
+            [sessionId]: [...(prev[sessionId] ?? []), botMsg],
+          }));
+          setSessions((prev) =>
+            prev.map((s) =>
+              s.id === sessionId
+                ? { ...s, lastMessage: reply.slice(0, 60) + "…", timestamp: new Date() }
+                : s
+            )
+          );
+          setIsTyping(false);
+        }, 800 + Math.random() * 600);
+        return; // Early return to avoid setting isTyping to false twice
+      } finally {
         setIsTyping(false);
-      }, delay);
+      }
     },
-    [input, isTyping, activeSessionId]
+    [input, isTyping, activeSessionId, useLogContext]
   );
 
   const startNewChat = () => {
@@ -453,19 +492,35 @@ export default function ChatbotPage() {
 
         {/* Input area */}
         <div className="px-6 py-4 border-t border-border/50 bg-card/80 backdrop-blur-sm">
-          {/* Quick prompts */}
-          <div className="flex gap-2 mb-3 overflow-x-auto no-scrollbar pb-0.5">
-            {QUICK_ACTIONS.map(({ label, icon: Icon, color }) => (
-              <button
-                key={label}
-                id={`chatbot-prompt-${label.toLowerCase().replace(/\s/g, "-")}`}
-                onClick={() => sendMessage(label)}
-                className="flex-shrink-0 flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-full border border-border bg-secondary/40 text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all"
-              >
-                <Icon size={11} className={color} />
-                {label}
-              </button>
-            ))}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-0.5">
+              {QUICK_ACTIONS.map(({ label, icon: Icon, color }) => (
+                <button
+                  key={label}
+                  id={`chatbot-prompt-${label.toLowerCase().replace(/\s/g, "-")}`}
+                  onClick={() => sendMessage(label)}
+                  className="flex-shrink-0 flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-full border border-border bg-secondary/40 text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all"
+                >
+                  <Icon size={11} className={color} />
+                  {label}
+                </button>
+              ))}
+            </div>
+            
+            <label className="flex items-center gap-2 cursor-pointer flex-shrink-0">
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                Log Context
+              </span>
+              <div className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${useLogContext ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={useLogContext}
+                  onChange={() => setUseLogContext(!useLogContext)}
+                />
+                <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${useLogContext ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
+              </div>
+            </label>
           </div>
 
           <div className="flex items-end gap-3">

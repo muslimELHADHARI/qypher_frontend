@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Bot, X, Send, Minimize2, Sparkles, Loader2 } from "lucide-react";
+import { Bot, X, Send, Minimize2, Sparkles, Loader2, Zap } from "lucide-react";
 import { getMockResponse, type ChatMessage } from "@/data/chatbot_mock";
+import { ragGroqChat } from "@/lib/services/ragService";
 import Link from "next/link";
 
 const INITIAL_MESSAGE: ChatMessage = {
@@ -39,14 +40,22 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
           <Bot size={12} className="text-primary" />
         </div>
       )}
-      <div
-        className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-xs leading-relaxed whitespace-pre-wrap ${
-          isUser
-            ? "bg-primary text-white rounded-br-sm shadow-[0_0_12px_rgba(211,84,0,0.3)]"
-            : "bubble-assistant rounded-bl-sm"
-        }`}
-      >
-        {msg.content}
+      <div className="flex flex-col gap-1 max-w-[80%]">
+        <div
+          className={`px-4 py-2.5 rounded-2xl text-xs leading-relaxed whitespace-pre-wrap ${
+            isUser
+              ? "bg-primary text-white rounded-br-sm shadow-[0_0_12px_rgba(211,84,0,0.3)]"
+              : "bubble-assistant rounded-bl-sm"
+          }`}
+        >
+          {msg.content}
+        </div>
+        {!isUser && msg.type === "code" && (
+          <div className="text-[8px] text-emerald-500 font-semibold flex items-center gap-1 self-start ml-1">
+            <Zap size={8} />
+            Context analyzed
+          </div>
+        )}
       </div>
     </div>
   );
@@ -74,7 +83,7 @@ export default function ChatbotBubble() {
     }
   }, [open]);
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     const trimmed = input.trim();
     if (!trimmed || isTyping) return;
 
@@ -88,18 +97,36 @@ export default function ChatbotBubble() {
     setInput("");
     setIsTyping(true);
 
-    const delay = 800 + Math.random() * 600;
-    setTimeout(() => {
-      const reply = getMockResponse(trimmed);
+    try {
+      const response = await ragGroqChat(trimmed, true); // True to always use log context in bubble
+      
       const botMsg: ChatMessage = {
         id: `b-${Date.now()}`,
         role: "assistant",
-        content: reply,
+        content: response.response,
         timestamp: new Date(),
+        type: response.log_context_used ? "code" : "text",
       };
+      
       setMessages((prev) => [...prev, botMsg]);
+    } catch (error) {
+      console.error("RAG API Error in bubble, falling back to mock:", error);
+      
+      setTimeout(() => {
+        const reply = getMockResponse(trimmed);
+        const botMsg: ChatMessage = {
+          id: `b-${Date.now()}`,
+          role: "assistant",
+          content: reply,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, botMsg]);
+        setIsTyping(false);
+      }, 800 + Math.random() * 600);
+      return; // Early return
+    } finally {
       setIsTyping(false);
-    }, delay);
+    }
   };
 
   return (
