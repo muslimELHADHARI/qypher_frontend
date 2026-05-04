@@ -16,14 +16,20 @@ import {
   Activity,
   Copy,
   Check,
+  Settings,
+  Database,
 } from "lucide-react";
 import {
   getMockResponse,
   MOCK_SESSIONS,
   type ChatMessage,
   type ChatSession,
+  type LogEntry,
 } from "@/data/chatbot_mock";
-import { ragGroqChat } from "@/lib/services/ragService";
+import { ragGroqChat, ragQuery, type GroqModel } from "@/lib/services/ragService";
+import { LogsPanel } from "@/components/LogsPanel";
+import { StreamingMarkdown } from "@/components/StreamingMarkdown";
+import { RAGManagementPanel } from "@/components/RAGManagementPanel";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -76,7 +82,12 @@ function TypingIndicator() {
 
 // ─── Message component ───────────────────────────────────────────────────────
 
-function Message({ msg }: { msg: ChatMessage }) {
+interface MessageProps {
+  msg: ChatMessage;
+  isStreaming?: boolean;
+}
+
+function Message({ msg, isStreaming = false }: MessageProps) {
   const isUser = msg.role === "user";
   const [copied, setCopied] = useState(false);
 
@@ -87,59 +98,70 @@ function Message({ msg }: { msg: ChatMessage }) {
   };
 
   return (
-    <div
-      className={`flex items-end gap-3 group ${isUser ? "flex-row-reverse" : ""}`}
-    >
-      {/* Avatar */}
+    <div className="space-y-3">
       <div
-        className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-          isUser
+        className={`flex items-end gap-3 group ${isUser ? "flex-row-reverse" : ""}`}
+      >
+        {/* Avatar */}
+        <div
+          className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isUser
             ? "bg-primary/20 border border-primary/40"
             : "bg-primary/15 border border-primary/30"
-        }`}
-      >
-        {isUser ? (
-          <span className="text-[11px] font-bold text-primary">SOC</span>
-        ) : (
-          <Bot size={15} className="text-primary" />
-        )}
-      </div>
-
-      <div
-        className={`flex flex-col gap-1 max-w-[72%] ${isUser ? "items-end" : "items-start"}`}
-      >
-        <span className="text-[10px] text-muted-foreground/60 mx-1">
-          {isUser ? "You" : "Qypher AI"} · {formatTime(msg.timestamp)}
-        </span>
-
-        <div
-          className={`relative rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
-            isUser
-              ? "bg-primary text-white rounded-br-sm shadow-[0_2px_16px_rgba(211,84,0,0.25)]"
-              : "bg-card border border-border/60 text-foreground rounded-bl-sm shadow-sm"
-          }`}
+            }`}
         >
-          {msg.content}
-          
-          {/* Metadata for assistant messages */}
-          {!isUser && msg.type === "code" && (
-            <div className="mt-2 text-[9px] text-emerald-500 font-semibold flex items-center gap-1">
-              <Zap size={10} />
-              Logs analyzed for this response
-            </div>
-          )}
-
-          {/* Copy button on hover (assistant only) */}
-          {!isUser && (
-            <button
-              onClick={copy}
-              className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-card border border-border shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-primary"
-            >
-              {copied ? <Check size={11} /> : <Copy size={11} />}
-            </button>
+          {isUser ? (
+            <span className="text-[11px] font-bold text-primary">SOC</span>
+          ) : (
+            <Bot size={15} className="text-primary" />
           )}
         </div>
+
+        <div
+          className={`flex flex-col gap-1 max-w-[72%] ${isUser ? "items-end" : "items-start"}`}
+        >
+          <span className="text-[10px] text-muted-foreground/60 mx-1">
+            {isUser ? "You" : "Qypher AI"} · {formatTime(msg.timestamp)}
+          </span>
+
+          <div
+            className={`relative rounded-2xl px-4 py-3 text-sm leading-relaxed ${isUser
+              ? "bg-primary text-white rounded-br-sm shadow-[0_2px_16px_rgba(211,84,0,0.25)]"
+              : "bg-card border border-border/60 text-foreground rounded-bl-sm shadow-sm"
+              }`}
+          >
+            {isUser ? (
+              <p>{msg.content}</p>
+            ) : (
+              <StreamingMarkdown content={msg.content} isStreaming={isStreaming} />
+            )}
+
+            {/* Metadata for assistant messages */}
+            {!isUser && msg.log_context_used && (
+              <div className="mt-3 pt-2 border-t border-border/40 text-[9px] text-emerald-500 font-semibold flex items-center gap-1">
+                <Zap size={10} />
+                {msg.logs_retrieved || 0} logs analyzed for this response
+              </div>
+            )}
+
+            {/* Copy button on hover (assistant only) */}
+            {!isUser && (
+              <button
+                onClick={copy}
+                className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-card border border-border shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-primary"
+              >
+                {copied ? <Check size={11} /> : <Copy size={11} />}
+              </button>
+            )}
+          </div>
+        </div>
       </div>
+
+      {/* Logs panel */}
+      {!isUser && msg.logs && msg.logs.length > 0 && (
+        <div className="ml-11">
+          <LogsPanel logs={msg.logs} />
+        </div>
+      )}
     </div>
   );
 }
@@ -207,11 +229,10 @@ function SessionItem({
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left px-3 py-3 rounded-xl transition-all group flex flex-col gap-1 ${
-        isActive
-          ? "bg-primary/10 border border-primary/20"
-          : "hover:bg-secondary/60 border border-transparent"
-      }`}
+      className={`w-full text-left px-3 py-3 rounded-xl transition-all group flex flex-col gap-1 ${isActive
+        ? "bg-primary/10 border border-primary/20"
+        : "hover:bg-secondary/60 border border-transparent"
+        }`}
     >
       <div className="flex items-center justify-between gap-2">
         <span
@@ -248,6 +269,10 @@ export default function ChatbotPage() {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [useLogContext, setUseLogContext] = useState(true);
+  const [k, setK] = useState(10);
+  const [model, setModel] = useState<GroqModel>("llama-3.3-70b-versatile");
+  const [showSettings, setShowSettings] = useState(false);
+  const [showRAGPanel, setShowRAGPanel] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -294,16 +319,46 @@ export default function ChatbotPage() {
       setIsTyping(true);
 
       try {
-        const response = await ragGroqChat(content, useLogContext);
-        
+        const response = await ragGroqChat(content, useLogContext, k, model);
+
+        let logs: LogEntry[] = [];
+
+        // Fetch logs if context was used
+        if (useLogContext && response.logs_retrieved > 0) {
+          try {
+            const queryResponse = await ragQuery(content, "general", Math.min(response.logs_retrieved, 15));
+            if (queryResponse.logs && queryResponse.logs.length > 0) {
+              logs = queryResponse.logs.map(log => ({
+                id: log.id,
+                timestamp: log.timestamp,
+                severity: log.severity || "medium",
+                source_ip: log.source_ip || "unknown",
+                destination_ip: log.destination_ip || "N/A",
+                alert_message: log.alert_message || log.raw_log || `Event: ${log.severity}`,
+                _similarity_score: log._similarity_score,
+              }));
+              console.log(`✓ Fetched ${logs.length} logs for display`);
+            } else {
+              console.warn("Query returned no logs");
+            }
+          } catch (logsError) {
+            console.warn("Failed to fetch logs:", logsError);
+          }
+        } else {
+          console.log(`Skipping log fetch: useLogContext=${useLogContext}, logs_retrieved=${response.logs_retrieved}`);
+        }
+
         const botMsg: ChatMessage = {
           id: `b-${Date.now()}`,
           role: "assistant",
           content: response.response,
           timestamp: new Date(),
           type: response.log_context_used ? "code" : "text",
+          logs: logs.length > 0 ? logs : undefined,
+          logs_retrieved: response.logs_retrieved,
+          log_context_used: response.log_context_used,
         };
-        
+
         setMessagesMap((prev) => ({
           ...prev,
           [sessionId]: [...(prev[sessionId] ?? []), botMsg],
@@ -317,7 +372,7 @@ export default function ChatbotPage() {
         );
       } catch (error) {
         console.error("RAG API Error, falling back to mock data:", error);
-        
+
         // Fallback to mock response
         setTimeout(() => {
           const reply = getMockResponse(content);
@@ -345,7 +400,7 @@ export default function ChatbotPage() {
         setIsTyping(false);
       }
     },
-    [input, isTyping, activeSessionId, useLogContext]
+    [input, isTyping, activeSessionId, useLogContext, k, model]
   );
 
   const startNewChat = () => {
@@ -455,23 +510,37 @@ export default function ChatbotPage() {
       {/* ── Chat Area ── */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Chat header */}
-        <div className="px-6 py-4 border-b border-border/50 flex items-center gap-3 bg-card/80 backdrop-blur-sm">
-          <div className="relative">
-            <div className="w-9 h-9 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center">
-              <Bot size={17} className="text-primary" />
+        <div className="px-6 py-4 border-b border-border/50 flex items-center justify-between gap-3 bg-card/80 backdrop-blur-sm">
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <div className="w-9 h-9 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center">
+                <Bot size={17} className="text-primary" />
+              </div>
+              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 border-2 border-card shadow-[0_0_6px_rgba(16,185,129,0.7)]" />
             </div>
-            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 border-2 border-card shadow-[0_0_6px_rgba(16,185,129,0.7)]" />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-foreground">Qypher SOC Assistant</p>
-            <p className="text-[11px] text-muted-foreground/60">
-              {activeSessionId === NEW_SESSION_ID
-                ? "Start a new investigation"
-                : sessions.find((s) => s.id === activeSessionId)?.title ??
+            <div>
+              <p className="text-sm font-bold text-foreground">Qypher SOC Assistant</p>
+              <p className="text-[11px] text-muted-foreground/60">
+                {activeSessionId === NEW_SESSION_ID
+                  ? "Start a new investigation"
+                  : sessions.find((s) => s.id === activeSessionId)?.title ??
                   "Conversation"}
-            </p>
+              </p>
+            </div>
           </div>
+
+          {/* RAG Management Button */}
+          <button
+            onClick={() => setShowRAGPanel(true)}
+            className="p-2 rounded-lg bg-secondary/40 text-muted-foreground hover:text-primary hover:bg-secondary/60 transition-all"
+            title="RAG Management"
+          >
+            <Database size={16} />
+          </button>
         </div>
+
+        {/* RAG Management Panel */}
+        {showRAGPanel && <RAGManagementPanel onClose={() => setShowRAGPanel(false)} />}
 
         {/* Messages */}
         <div
@@ -482,8 +551,12 @@ export default function ChatbotPage() {
             <EmptyState onAction={(label) => sendMessage(label)} />
           ) : (
             <>
-              {activeMessages.map((msg) => (
-                <Message key={msg.id} msg={msg} />
+              {activeMessages.map((msg, idx) => (
+                <Message
+                  key={msg.id}
+                  msg={msg}
+                  isStreaming={isTyping && idx === activeMessages.length - 1 && msg.role === "assistant"}
+                />
               ))}
               {isTyping && <TypingIndicator />}
             </>
@@ -491,7 +564,61 @@ export default function ChatbotPage() {
         </div>
 
         {/* Input area */}
-        <div className="px-6 py-4 border-t border-border/50 bg-card/80 backdrop-blur-sm">
+        <div className="px-6 py-4 border-t border-border/50 bg-card/80 backdrop-blur-sm space-y-3">
+          {/* Settings panel */}
+          {showSettings && (
+            <div className="border border-border/50 rounded-xl p-4 bg-secondary/30 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-foreground">RAG Parameters</h4>
+                <button
+                  onClick={() => setShowSettings(false)}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Logs to retrieve (k) */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-semibold text-foreground">
+                  Logs to Retrieve: {k}
+                </label>
+                <input
+                  type="range"
+                  min="1"
+                  max="50"
+                  value={k}
+                  onChange={(e) => setK(Number(e.target.value))}
+                  className="w-full h-1.5 bg-secondary rounded-full cursor-pointer"
+                />
+                <p className="text-[9px] text-muted-foreground/60">
+                  Higher values include more context (slower responses)
+                </p>
+              </div>
+
+              {/* Model selection */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-semibold text-foreground">
+                  LLM Model
+                </label>
+                <select
+                  value={model}
+                  onChange={(e) => setModel(e.target.value as GroqModel)}
+                  className="w-full text-xs px-2 py-1.5 rounded-lg border border-border bg-card text-foreground hover:border-primary/40 transition-colors"
+                >
+                  <option value="llama-3.3-70b-versatile">
+                    Llama 3.3 70B Versatile (Balanced)
+                  </option>
+                  <option value="llama2-70b-4096">
+                    Llama 2 70B (Powerful)
+                  </option>
+                  <option value="llama3-8b-8192">Llama 3 8B (Latest)</option>
+                  <option value="gemma-7b-it">Gemma 7B (Lightweight)</option>
+                </select>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center justify-between mb-3">
             <div className="flex gap-2 overflow-x-auto no-scrollbar pb-0.5">
               {QUICK_ACTIONS.map(({ label, icon: Icon, color }) => (
@@ -506,21 +633,34 @@ export default function ChatbotPage() {
                 </button>
               ))}
             </div>
-            
-            <label className="flex items-center gap-2 cursor-pointer flex-shrink-0">
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                Log Context
-              </span>
-              <div className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${useLogContext ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
-                <input
-                  type="checkbox"
-                  className="sr-only"
-                  checked={useLogContext}
-                  onChange={() => setUseLogContext(!useLogContext)}
-                />
-                <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${useLogContext ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
-              </div>
-            </label>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                className={`p-1.5 rounded-lg transition-all ${showSettings
+                  ? "bg-primary/20 text-primary"
+                  : "bg-secondary/40 text-muted-foreground hover:text-primary"
+                  }`}
+                title="RAG Settings"
+              >
+                <Settings size={14} />
+              </button>
+
+              <label className="flex items-center gap-2 cursor-pointer flex-shrink-0">
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  Log Context
+                </span>
+                <div className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${useLogContext ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
+                  <input
+                    type="checkbox"
+                    className="sr-only"
+                    checked={useLogContext}
+                    onChange={() => setUseLogContext(!useLogContext)}
+                  />
+                  <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${useLogContext ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
+                </div>
+              </label>
+            </div>
           </div>
 
           <div className="flex items-end gap-3">
@@ -559,8 +699,8 @@ export default function ChatbotPage() {
               )}
             </button>
           </div>
-          <p className="text-[10px] text-muted-foreground/30 text-center mt-2">
-            Shift+Enter for new line · Responses powered by mock data
+          <p className="text-[10px] text-muted-foreground/30 text-center">
+            Shift+Enter for new line · Using k={k} logs, model={model.split("-")[0]}
           </p>
         </div>
       </div>

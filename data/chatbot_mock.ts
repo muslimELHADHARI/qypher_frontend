@@ -1,9 +1,22 @@
+export interface LogEntry {
+  id: number;
+  timestamp: string;
+  severity: "critical" | "high" | "medium" | "low" | string;
+  source_ip: string;
+  destination_ip: string;
+  alert_message: string;
+  _similarity_score?: number;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
   type?: "text" | "alert" | "code" | "table";
+  logs?: LogEntry[];
+  logs_retrieved?: number;
+  log_context_used?: boolean;
 }
 
 export interface ChatSession {

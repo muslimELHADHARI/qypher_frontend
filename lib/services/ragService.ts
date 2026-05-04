@@ -5,7 +5,7 @@
  */
 
 const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "http://127.0.0.1:8000";
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "http://192.168.1.195:8000";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -26,8 +26,9 @@ export interface RagLog {
   timestamp: string;
   severity: "critical" | "high" | "medium" | "low" | string;
   source_ip: string;
-  destination_ip: string;
-  alert_message: string;
+  destination_ip: string | null;
+  alert_message?: string;
+  raw_log?: string;
   _similarity_score?: number;
 }
 
