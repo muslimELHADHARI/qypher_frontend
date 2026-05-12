@@ -7,11 +7,11 @@ import {
 } from "./logReader";
 
 import { getAutoBlockConfig } from "./autoBlockConfig";
-
+const REMOTE_URL = process.env.NEXT_PUBLIC_REMOTE_URL || "http://127.0.0.1:8000";
 const STREAM_URLS = {
-  qsh: "http://127.0.0.1:8000/stream/qsh/raw",
-  suricata: "http://127.0.0.1:8000/stream/suricata",
-  ml: "http://127.0.0.1:8000/stream/ml-zeek"
+  qsh: REMOTE_URL + "/stream/qsh/raw",
+  suricata: REMOTE_URL + "/stream/suricata",
+  ml: REMOTE_URL + "/stream/ml-zeek"
 };
 
 const MAX_BUFFER_SIZE = 1000;
@@ -153,9 +153,17 @@ class StreamManager {
       console.log(`[AutoBlock] Triggering block for ${event.src_ip} due to ${event.attack_type}`);
 
       try {
-        const res = await fetch(`http://127.0.0.1:8000/ips/block?ip=${event.src_ip}&reason=[Autonomous] ${event.attack_type}`, {
-          method: "POST"
-        });
+        const REMOTE_URL =
+          process.env.NEXT_PUBLIC_REMOTE_URL || "http://127.0.0.1:8000";
+
+        const res = await fetch(
+          `${REMOTE_URL}/ips/block?ip=${event.src_ip}&reason=${encodeURIComponent(
+            `[Autonomous] ${event.attack_type}`
+          )}`,
+          {
+            method: "POST",
+          }
+        );
 
         if (res.ok) {
           // Push a pseudo-event into the stream for the Toast notification

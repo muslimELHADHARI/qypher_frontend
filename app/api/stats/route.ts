@@ -92,14 +92,14 @@ function computeStats(events: SecurityEvent[]): StatsResponse {
     historicalEvents: [] // Will be populated from DB
   };
 }
-
+const REMOTE_URL = process.env.NEXT_PUBLIC_REMOTE_URL || "http://127.0.0.1:8000";
 export async function GET() {
   const events = await loadAllEvents();
   const stats = computeStats(events);
 
   // Fetch true absolute total from the backend database instead of relying on the 1000-event memory buffer
   try {
-    const backendRes = await fetch("http://127.0.0.1:8000/logs/stats", { cache: "no-store" });
+    const backendRes = await fetch(REMOTE_URL + "/logs/stats", { cache: "no-store" });
     if (backendRes.ok) {
       const backendData = await backendRes.json();
       if (backendData.statistics) {
@@ -118,32 +118,32 @@ export async function GET() {
     console.error("[Stats API] Failed to fetch true total events:", err);
   }
 
-    // Fetch historical events for the ledger
-    try {
-      const historyRes = await fetch("http://127.0.0.1:8000/logs/search?limit=50", { cache: "no-store" });
-      if (historyRes.ok) {
-        const historyData = await historyRes.json();
-        if (historyData.logs) {
-          stats.historicalEvents = historyData.logs.map((log: any) => {
-            let meta: any = {};
-            try { meta = JSON.parse(log.metadata || "{}"); } catch(e) {}
-            return {
-              id: log.id.toString(),
-              timestamp: log.timestamp || new Date().toISOString(),
-              source: (log.source_table || "").replace("logs_", "") || "database",
-              src_ip: log.source_ip || "N/A",
-              src_port: log.source_port === "None" ? "" : log.source_port,
-              dst_ip: log.destination_ip || "N/A",
-              attack_type: log.alert_message || meta.event || log.action || "Logged Event",
-              severity: log.severity === "1" ? "CRITICAL" : log.severity === "2" ? "HIGH" : log.severity === "3" ? "MEDIUM" : "LOW",
-              raw: log.raw_log || log.metadata || "Historical log entry"
-            };
-          });
-        }
+  // Fetch historical events for the ledger
+  try {
+    const historyRes = await fetch(REMOTE_URL + "/logs/search?limit=50", { cache: "no-store" });
+    if (historyRes.ok) {
+      const historyData = await historyRes.json();
+      if (historyData.logs) {
+        stats.historicalEvents = historyData.logs.map((log: any) => {
+          let meta: any = {};
+          try { meta = JSON.parse(log.metadata || "{}"); } catch (e) { }
+          return {
+            id: log.id.toString(),
+            timestamp: log.timestamp || new Date().toISOString(),
+            source: (log.source_table || "").replace("logs_", "") || "database",
+            src_ip: log.source_ip || "N/A",
+            src_port: log.source_port === "None" ? "" : log.source_port,
+            dst_ip: log.destination_ip || "N/A",
+            attack_type: log.alert_message || meta.event || log.action || "Logged Event",
+            severity: log.severity === "1" ? "CRITICAL" : log.severity === "2" ? "HIGH" : log.severity === "3" ? "MEDIUM" : "LOW",
+            raw: log.raw_log || log.metadata || "Historical log entry"
+          };
+        });
       }
-    } catch (err) {
-      console.error("[Stats API] Failed to fetch historical logs:", err);
     }
+  } catch (err) {
+    console.error("[Stats API] Failed to fetch historical logs:", err);
+  }
 
   return NextResponse.json(stats);
 }

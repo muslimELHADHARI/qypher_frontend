@@ -34,8 +34,8 @@ function Tab({ active, onClick, children, icon }: TabProps) {
         <button
             onClick={onClick}
             className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${active
-                    ? "bg-primary/20 text-primary border border-primary/30"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/40 border border-transparent"
+                ? "bg-primary/20 text-primary border border-primary/30"
+                : "text-muted-foreground hover:text-foreground hover:bg-secondary/40 border border-transparent"
                 }`}
         >
             {icon}
@@ -142,7 +142,7 @@ export function RAGManagementPanel({ onClose }: RAGManagementPanelProps) {
     };
 
     const handleClear = async () => {
-        if (!window.confirm("⚠️ This will clear all ingested logs from the RAG system. Continue?")) {
+        if (!window.confirm("This will clear all ingested logs from the RAG system. Continue?")) {
             return;
         }
         try {
@@ -218,8 +218,8 @@ export function RAGManagementPanel({ onClose }: RAGManagementPanelProps) {
                 {message && (
                     <div
                         className={`mx-6 mt-4 flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${message.type === "success"
-                                ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                                : "bg-destructive/10 text-destructive border border-destructive/20"
+                            ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                            : "bg-destructive/10 text-destructive border border-destructive/20"
                             }`}
                     >
                         {message.type === "success" ? (
@@ -521,7 +521,7 @@ export function RAGManagementPanel({ onClose }: RAGManagementPanelProps) {
                     {activeTab === "clear" && (
                         <div className="space-y-4">
                             <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-lg">
-                                <p className="text-xs font-semibold text-destructive mb-2">⚠️ Danger Zone</p>
+                                <p className="text-xs font-semibold text-destructive mb-2"> Danger Zone</p>
                                 <p className="text-xs text-muted-foreground">
                                     This action will permanently delete all ingested logs from the RAG vector store.
                                     This cannot be undone.

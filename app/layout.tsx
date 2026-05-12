@@ -33,7 +33,7 @@ export default function RootLayout({
             <main className="flex-1 min-h-screen transition-all duration-300 ml-0 lg:ml-64">
               <div className="p-4 md:p-8 max-w-[1600px] mx-auto">
                 <div className="flex justify-end mb-6">
-                   <ThemeToggle />
+                  <ThemeToggle />
                 </div>
                 <div className="page-fade-in">
                   {children}

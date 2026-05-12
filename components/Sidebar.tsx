@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import Logo from "./Logo";
 import { useState } from "react";
+import { useHealthOverview } from "@/hooks/useHealthOverview";
 
 const navItems = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -35,6 +36,54 @@ const aiNavItem = {
 export default function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const { health } = useHealthOverview(10000);
+
+  // Calculate system health status based on running services
+  const getSystemStatus = () => {
+    if (!health?.tools) return { status: "Unknown", color: "text-muted-foreground", glow: "", icon: "?" };
+
+    const runningServices = Object.values(health.tools).filter((tool: any) => tool.running).length;
+    const totalServices = Object.keys(health.tools).length;
+
+    if (runningServices === 4) {
+      return {
+        status: "Optimal",
+        color: "text-emerald-500",
+        glow: "shadow-[0_0_12px_#10b98166]",
+        icon: "⚡"
+      };
+    } else if (runningServices === 3) {
+      return {
+        status: "Healthy",
+        color: "text-emerald-400",
+        glow: "shadow-[0_0_10px_#34d39944]",
+        icon: "✓"
+      };
+    } else if (runningServices === 2) {
+      return {
+        status: "Fair",
+        color: "text-yellow-500",
+        glow: "shadow-[0_0_10px_#eab30844]",
+        icon: "⚠"
+      };
+    } else if (runningServices === 1) {
+      return {
+        status: "Degraded",
+        color: "text-orange-500",
+        glow: "shadow-[0_0_10px_#f5a62344]",
+        icon: "!"
+      };
+    } else {
+      return {
+        status: "Critical",
+        color: "text-rose-500",
+        glow: "shadow-[0_0_10px_#f4373744]",
+        icon: "✕"
+      };
+    }
+  };
+
+  const systemHealth = getSystemStatus();
 
   return (
     <aside
@@ -115,7 +164,18 @@ export default function Sidebar() {
           <div className="space-y-4">
             <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
               <span className="text-muted-foreground/50">System Status</span>
-              <span className="text-emerald-500 shadow-[0_0_8px_#10b98144]">Healthy</span>
+              <div className="flex items-center gap-1.5">
+                <span className={`${systemHealth.color} ${systemHealth.glow}`}>
+                  {systemHealth.icon}
+                </span>
+                <span className={`${systemHealth.color}`}>{systemHealth.status}</span>
+              </div>
+            </div>
+            <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+              <span className="text-muted-foreground/50">Services</span>
+              <span className="text-muted-foreground/80">
+                {health?.tools ? `${Object.values(health.tools).filter((t: any) => t.running).length}/${Object.keys(health.tools).length}` : "–"}
+              </span>
             </div>
             <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
               <span className="text-muted-foreground/50">Running Version</span>

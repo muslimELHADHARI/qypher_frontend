@@ -5,7 +5,7 @@
  */
 
 const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "http://192.168.1.195:8000";
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "http://192.168.1.178:8000";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
